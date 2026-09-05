@@ -171,12 +171,6 @@ Ideas under active consideration — tracked here so scope stays honest about wh
 
 Issues and pull requests are welcome. If you're proposing a protocol-level change (packet format, fountain-code parameters), please include the reasoning — this project treats correctness of the encode/decode round-trip as non-negotiable, so changes there get read carefully.
 
-<br/>
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
-
 ---
 <div align="center">
   <sub>Built for reliable transfer in completely isolated environments.</sub>
