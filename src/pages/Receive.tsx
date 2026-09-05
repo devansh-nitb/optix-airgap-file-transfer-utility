@@ -272,6 +272,11 @@ export default function Receive() {
                                 style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', backgroundColor: 'rgba(0, 0, 0, 0.25)', color: '#ffffff', textAlign: 'center', outline: 'none' }}
                                 autoFocus
                             />
+                            {errorMsg && (
+                                <div style={{ color: '#ef4444', fontSize: '0.85rem', textAlign: 'center', background: 'rgba(239, 68, 68, 0.1)', padding: '0.5rem', borderRadius: '4px' }}>
+                                    {errorMsg}
+                                </div>
+                            )}
                             <button type="submit" className="btn btn-primary btn-lg" disabled={!password || isDecrypting}>
                                 {isDecrypting ? 'Decrypting...' : 'Decrypt File'}
                             </button>
