@@ -101,15 +101,17 @@ export default function Receive() {
             if (parsed.payload.transferId !== m.transferId) return;
             if (seenIndicesRef.current.has(parsed.payload.packetIndex)) return;
             seenIndicesRef.current.add(parsed.payload.packetIndex);
-            setPacketsAccepted(p => p + 1);
+            const accepted = seenIndicesRef.current.size;
+            setPacketsAccepted(accepted);
 
             decoderRef.current.receivePacket({
                 packet_index: parsed.payload.packetIndex,
                 data: parsed.payload.data,
             });
 
-            const decoded = decoderRef.current.getDecodedCount();
-            setProgress(decoded / m.kBlocks);
+            // Fountain codes decode in an "avalanche" at the very end.
+            // To give users a smooth progress bar, we base it on packets received vs required blocks.
+            setProgress(Math.min(accepted / m.kBlocks, 0.99));
 
             if (decoderRef.current.isComplete()) {
                 isRunningRef.current = false;
