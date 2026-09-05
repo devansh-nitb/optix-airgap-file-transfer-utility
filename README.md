@@ -88,8 +88,8 @@ $$R = c \ln\!\left(\frac{K}{\delta}\right)\sqrt{K}$$
 $$
 \tau(d) =
 \begin{cases}
-\dfrac{R}{dK} & d = 1, \dots, \dfrac{K}{R} - 1 \\[6pt]
-\dfrac{R \ln(R/\delta)}{K} & d = \dfrac{K}{R} \\[6pt]
+\dfrac{R}{dK} & d = 1, \dots, \dfrac{K}{R} - 1 \\\\
+\dfrac{R \ln(R/\delta)}{K} & d = \dfrac{K}{R} \\\\
 0 & d > \dfrac{K}{R}
 \end{cases}
 \qquad\qquad
@@ -170,6 +170,12 @@ Ideas under active consideration — tracked here so scope stays honest about wh
 ## Contributing
 
 Issues and pull requests are welcome. If you're proposing a protocol-level change (packet format, fountain-code parameters), please include the reasoning — this project treats correctness of the encode/decode round-trip as non-negotiable, so changes there get read carefully.
+
+<br/>
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
 
 ---
 <div align="center">
