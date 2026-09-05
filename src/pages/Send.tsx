@@ -1,9 +1,9 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FountainEncoder } from '../lib/fountain';
-import { serializeInitPacket, serializeDataPacket } from '../lib/protocol/serialize';
-import type { InitMetadata } from '../lib/protocol/serialize';
+import { serializeInitPacket, serializeDataPacket, type InitMetadata } from '../lib/protocol/serialize';
 import { renderQRToCanvas } from '../lib/qr/renderer';
+import { encryptFile } from '../lib/crypto';
 
 const BLOCK_SIZE = 500;       // smaller block → smaller payload → fits safely inside QR version
 const QR_VERSION = 20;        // version 20 @ ECC=M fits up to ~666 bytes; 500 + 10 byte header = 510 ✓
@@ -31,11 +31,12 @@ function estimateTime(fileSize: number) {
 export default function Send() {
     const [file, setFile] = useState<File | null>(null);
     const [fileBuffer, setFileBuffer] = useState<Uint8Array | null>(null);
-    const [fileHash, setFileHash] = useState<Uint8Array | null>(null);
     const [isBroadcasting, setIsBroadcasting] = useState(false);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [packetsTransmitted, setPacketsTransmitted] = useState(0);
     const [timeElapsed, setTimeElapsed] = useState(0);
+    const [password, setPassword] = useState('');
+    const [isPreparing, setIsPreparing] = useState(false);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const broadcastContainerRef = useRef<HTMLDivElement>(null);
@@ -52,11 +53,8 @@ export default function Send() {
         if (e.target.files && e.target.files.length > 0) {
             const selectedFile = e.target.files[0];
             setFile(selectedFile);
-            setFileHash(null);
             const arrayBuffer = await selectedFile.arrayBuffer();
             setFileBuffer(new Uint8Array(arrayBuffer));
-            const hash = await computeSHA256(arrayBuffer);
-            setFileHash(hash);
         }
     };
 
@@ -89,20 +87,46 @@ export default function Send() {
         });
     }, [renderFrame]);
 
-    const startBroadcast = () => {
-        if (!file || !fileBuffer || !fileHash) return;
+    const startBroadcast = async () => {
+        if (!file || !fileBuffer) return;
+        setIsPreparing(true);
+        
+        let bufferToEncode = fileBuffer;
+        let isEncrypted = false;
+        let iv: Uint8Array | undefined = undefined;
+        let salt: Uint8Array | undefined = undefined;
+
+        if (password) {
+            try {
+                const encrypted = await encryptFile(fileBuffer.buffer as ArrayBuffer, password);
+                bufferToEncode = new Uint8Array(encrypted.ciphertext);
+                iv = encrypted.iv;
+                salt = encrypted.salt;
+                isEncrypted = true;
+            } catch (err) {
+                console.error("Encryption failed", err);
+                setIsPreparing(false);
+                return;
+            }
+        }
+
+        const hash = await computeSHA256(bufferToEncode.buffer as ArrayBuffer);
+        
         const seed = (Math.random() * 0xFFFFFFFF) >>> 0;
         const transferId = (Math.random() * 0xFFFFFFFF) >>> 0;
 
-        encoderRef.current = new FountainEncoder(fileBuffer, BLOCK_SIZE, seed);
+        encoderRef.current = new FountainEncoder(bufferToEncode, BLOCK_SIZE, seed);
         initMetaRef.current = {
             transferId,
-            totalFileSize: fileBuffer.length,
+            totalFileSize: bufferToEncode.length,
             blockSize: BLOCK_SIZE,
             kBlocks: encoderRef.current.getK(),
             fountainSeed: seed,
-            sha256: fileHash,
+            sha256: hash,
             filename: file.name,
+            isEncrypted,
+            iv,
+            salt
         };
 
         frameCountRef.current = 0;
@@ -110,10 +134,10 @@ export default function Send() {
         setPacketsTransmitted(0);
         setTimeElapsed(0);
 
+        setIsPreparing(false);
         isBroadcastingRef.current = true;
         setIsBroadcasting(true);
 
-        // Kick off the loop — but wait one tick so React state/canvas is mounted
         loopTimerRef.current = window.setTimeout(loop, 0);
     };
 
@@ -228,7 +252,7 @@ export default function Send() {
                                 </div>
                                 <button
                                     className="file-change-btn"
-                                    onClick={() => { setFile(null); setFileBuffer(null); setFileHash(null); }}
+                                    onClick={() => { setFile(null); setFileBuffer(null); }}
                                 >
                                     Change
                                 </button>
@@ -268,23 +292,37 @@ export default function Send() {
                                 </div>
                             )}
 
-                            <div className="mt-6" style={{ display: 'flex', gap: '0.75rem' }}>
+                            <div className="mt-4" style={{ width: '100%', textAlign: 'left' }}>
+                                <label style={{ display: 'block', fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '0.5rem' }}>
+                                    Password Protection (Optional)
+                                </label>
+                                <input
+                                    type="password"
+                                    className="input-field"
+                                    placeholder="Enter password to encrypt..."
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', backgroundColor: 'rgba(0, 0, 0, 0.25)', color: '#ffffff', outline: 'none' }}
+                                />
+                            </div>
+
+                            <div className="mt-6" style={{ display: 'flex', gap: '0.75rem', width: '100%' }}>
                                 <button
                                     className="btn btn-primary btn-lg"
                                     style={{ flex: 1 }}
                                     onClick={startBroadcast}
-                                    disabled={!fileHash}
+                                    disabled={isPreparing || !fileBuffer}
                                 >
-                                    {!fileHash ? (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                    {isPreparing ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem' }}>
                                             <div className="status-dot-wrap">
                                                 <span className="status-ping" style={{ backgroundColor: 'rgba(255,255,255,0.6)' }}></span>
                                                 <span className="status-dot" style={{ backgroundColor: '#ffffff' }}></span>
                                             </div>
-                                            <span>Computing hash…</span>
+                                            <span>{password ? 'Encrypting & Preparing...' : 'Preparing...'}</span>
                                         </div>
                                     ) : (
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
                                             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                                                 <path d="M8 5v14l11-7z" />
                                             </svg>

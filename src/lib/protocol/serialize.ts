@@ -10,6 +10,9 @@ export interface InitMetadata {
     fountainSeed: number;
     sha256: Uint8Array;
     filename: string;
+    isEncrypted: boolean;
+    iv?: Uint8Array;
+    salt?: Uint8Array;
 }
 
 export interface DataPayload {
@@ -23,9 +26,10 @@ export function serializeInitPacket(meta: InitMetadata): Uint8Array {
     const filenameBytes = encoder.encode(meta.filename);
     const filenameLen = Math.min(filenameBytes.length, 255);
     
-    // Size = 1(v) + 1(type) + 4(tid) + 4(size) + 2(bs) + 3(k) + 4(seed) + 32(hash) + 1(flen) + flen
-    // = 52 + flen
-    const buffer = new Uint8Array(52 + filenameLen);
+    const encSize = meta.isEncrypted ? 1 + 12 + 16 : 1;
+    // Size = 1(v) + 1(type) + 4(tid) + 4(size) + 2(bs) + 3(k) + 4(seed) + 32(hash) + encSize + 1(flen) + flen
+    // = 51 + encSize + 1 + flen = 52 + encSize + flen
+    const buffer = new Uint8Array(52 + encSize + filenameLen);
     const view = new DataView(buffer.buffer);
     
     buffer[0] = PROTOCOL_VERSION;
@@ -40,8 +44,20 @@ export function serializeInitPacket(meta: InitMetadata): Uint8Array {
     
     view.setUint32(15, meta.fountainSeed, false);
     buffer.set(meta.sha256, 19);
-    buffer[51] = filenameLen;
-    buffer.set(filenameBytes.slice(0, filenameLen), 52);
+    
+    let offset = 51;
+    if (meta.isEncrypted && meta.iv && meta.salt) {
+        buffer[offset++] = 1;
+        buffer.set(meta.iv, offset);
+        offset += 12;
+        buffer.set(meta.salt, offset);
+        offset += 16;
+    } else {
+        buffer[offset++] = 0;
+    }
+    
+    buffer[offset++] = filenameLen;
+    buffer.set(filenameBytes.slice(0, filenameLen), offset);
     
     return buffer;
 }
@@ -74,17 +90,31 @@ export function deserializePacket(buffer: Uint8Array): { type: 'INIT', meta: Ini
         const kBlocks = (buffer[12] << 16) | (buffer[13] << 8) | buffer[14];
         const fountainSeed = view.getUint32(15, false);
         const sha256 = new Uint8Array(buffer.buffer, buffer.byteOffset + 19, 32);
-        const filenameLen = buffer[51];
+        
+        let offset = 51;
+        const isEncrypted = buffer[offset++] === 1;
+        let iv: Uint8Array | undefined;
+        let salt: Uint8Array | undefined;
+        
+        if (isEncrypted) {
+            if (buffer.length < offset + 28) return null; // 12 + 16
+            iv = new Uint8Array(buffer.buffer, buffer.byteOffset + offset, 12);
+            offset += 12;
+            salt = new Uint8Array(buffer.buffer, buffer.byteOffset + offset, 16);
+            offset += 16;
+        }
+        
+        const filenameLen = buffer[offset++];
         
         let filename = "";
-        if (buffer.length >= 52 + filenameLen) {
+        if (buffer.length >= offset + filenameLen) {
             const decoder = new TextDecoder();
-            filename = decoder.decode(new Uint8Array(buffer.buffer, buffer.byteOffset + 52, filenameLen));
+            filename = decoder.decode(new Uint8Array(buffer.buffer, buffer.byteOffset + offset, filenameLen));
         }
         
         return {
             type: 'INIT',
-            meta: { transferId, totalFileSize, blockSize, kBlocks, fountainSeed, sha256: new Uint8Array(sha256), filename }
+            meta: { transferId, totalFileSize, blockSize, kBlocks, fountainSeed, sha256: new Uint8Array(sha256), filename, isEncrypted, iv, salt }
         };
     } else if (packetType === PACKET_TYPE_DATA) {
         if (buffer.length < 10) return null;

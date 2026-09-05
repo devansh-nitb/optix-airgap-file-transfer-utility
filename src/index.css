@@ -2067,12 +2067,14 @@ p { color: var(--text-secondary); line-height: 1.6; }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 640px) {
-  .main-content { padding: 1.5rem 1rem; }
+  .main-content { padding: 1rem 0.5rem; }
   .action-cards { grid-template-columns: 1fr; }
-  .transfer-info { grid-template-columns: 1fr 1fr; }
+  .transfer-info { grid-template-columns: 1fr; }
   .hero-stats { gap: 1.5rem; }
-  .setup-panel { padding: 1.5rem; }
-  .scan-panel { padding: 1.5rem; }
+  .setup-panel { padding: 1rem; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden; }
+  .scan-panel { padding: 1rem; width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden; }
+  .btn { max-width: 100%; box-sizing: border-box; white-space: normal; padding-left: 1rem; padding-right: 1rem; }
+  .btn-lg { padding: 0.8rem 1rem; }
 }
 
 /* ===== CUSTOM STATUS INDICATORS ===== */

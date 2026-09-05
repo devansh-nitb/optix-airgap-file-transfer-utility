@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import jsQR from 'jsqr';
 import { FountainDecoder } from '../lib/fountain';
-import { deserializePacket } from '../lib/protocol/serialize';
-import type { InitMetadata } from '../lib/protocol/serialize';
+import { deserializePacket, type InitMetadata } from '../lib/protocol/serialize';
+import { decryptFile } from '../lib/crypto';
 
 async function computeSHA256(buffer: ArrayBuffer) {
     const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
@@ -16,7 +16,7 @@ function arraysEqual(a: Uint8Array, b: Uint8Array) {
     return true;
 }
 
-type ReceiveState = 'idle' | 'scanning' | 'complete' | 'error';
+type ReceiveState = 'idle' | 'scanning' | 'awaiting_password' | 'complete' | 'error';
 
 export default function Receive() {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -35,6 +35,9 @@ export default function Receive() {
     const [fileUrl, setFileUrl] = useState<string | null>(null);
     const [fileName, setFileName] = useState<string>('');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [password, setPassword] = useState('');
+    const [isDecrypting, setIsDecrypting] = useState(false);
+    const [encryptedBuffer, setEncryptedBuffer] = useState<ArrayBuffer | null>(null);
 
     const metaRef = useRef<InitMetadata | null>(null);
 
@@ -131,14 +134,40 @@ export default function Receive() {
                 setErrorMsg('SHA-256 mismatch — the reconstructed file is corrupted. Try scanning again.');
                 return;
             }
-            const blob = new Blob([fileData.buffer as ArrayBuffer]);
-            const url = URL.createObjectURL(blob);
-            setFileUrl(url);
-            setState('complete');
+            if (m.isEncrypted) {
+                setEncryptedBuffer(fileData.buffer as ArrayBuffer);
+                setState('awaiting_password');
+            } else {
+                const blob = new Blob([fileData.buffer as ArrayBuffer]);
+                const url = URL.createObjectURL(blob);
+                setFileUrl(url);
+                setState('complete');
+            }
         } catch (err) {
             setState('error');
             setErrorMsg('Error during file reconstruction. Please retry.');
             console.error(err);
+        }
+    };
+
+    const handleDecrypt = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const m = metaRef.current;
+        if (!m || !encryptedBuffer || !password || !m.iv || !m.salt) return;
+        
+        setIsDecrypting(true);
+        setErrorMsg(null);
+        try {
+            const decrypted = await decryptFile(encryptedBuffer, password, m.iv, m.salt);
+            const blob = new Blob([decrypted]);
+            const url = URL.createObjectURL(blob);
+            setFileUrl(url);
+            setState('complete');
+        } catch (err) {
+            setErrorMsg('Incorrect password or corrupted data. Decryption failed.');
+            console.error(err);
+        } finally {
+            setIsDecrypting(false);
         }
     };
 
@@ -175,6 +204,9 @@ export default function Receive() {
         setProgress(0);
         setFramesScanned(0);
         setPacketsAccepted(0);
+        setEncryptedBuffer(null);
+        setPassword('');
+        setIsDecrypting(false);
         setState('idle');
     };
 
@@ -219,6 +251,31 @@ export default function Receive() {
                                 Receive Another
                             </button>
                         </div>
+                    </div>
+                ) : state === 'awaiting_password' ? (
+                    <div className="success-state fade-in">
+                        <div className="success-icon-wrap" style={{ background: 'var(--accent)' }}>
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: '#fff'}}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        </div>
+                        <div className="success-title">Encrypted File Received</div>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
+                            The payload was successfully decoded, but the file is encrypted. Enter the password to decrypt it.
+                        </p>
+                        
+                        <form onSubmit={handleDecrypt} style={{ width: '100%', maxWidth: '300px', display: 'flex', flexDirection: 'column', gap: '1rem', margin: '0 auto' }}>
+                            <input
+                                type="password"
+                                className="input-field"
+                                placeholder="Enter decryption password..."
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', backgroundColor: 'rgba(0, 0, 0, 0.25)', color: '#ffffff', textAlign: 'center', outline: 'none' }}
+                                autoFocus
+                            />
+                            <button type="submit" className="btn btn-primary btn-lg" disabled={!password || isDecrypting}>
+                                {isDecrypting ? 'Decrypting...' : 'Decrypt File'}
+                            </button>
+                        </form>
                     </div>
                 ) : (
                     <>

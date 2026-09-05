@@ -52,10 +52,7 @@ export const Footer: React.FC = () => {
                     <div className="footer-subscribe-col">
                         <h3 className="footer-col-title">Zero-Trust Air Gap</h3>
                         <p className="footer-brand-desc" style={{ marginTop: 0 }}>100% offline, browser-local processing with zero server calls or network requests.</p>
-                        <div className="footer-subscribe-box">
-                            <input type="email" placeholder="Enter email for updates..." className="footer-email-input" />
-                            <button className="footer-subscribe-btn">Subscribe</button>
-                        </div>
+
                     </div>
                 </div>
 

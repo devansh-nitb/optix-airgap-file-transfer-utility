@@ -53,14 +53,6 @@ export const Header: React.FC = () => {
                         )}
                     </button>
 
-                    <Link to="/send" className="btn-get-started">
-                        <span>Get started</span>
-                        <span className="arrow-circle">
-                            <svg width="12" height="10" viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M.6 4.602h10m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                        </span>
-                    </Link>
                 </div>
 
                 {/* Mobile Menu Toggle */}
@@ -98,20 +90,6 @@ export const Header: React.FC = () => {
                                 {item.label}
                             </Link>
                         ))}
-                    </div>
-                    <div className="mobile-drawer-footer">
-                        <Link
-                            to="/send"
-                            onClick={() => setMenuOpen(false)}
-                            className="btn-get-started w-full"
-                        >
-                            <span>Get started</span>
-                            <span className="arrow-circle">
-                                <svg width="12" height="10" viewBox="0 0 12 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M.6 4.602h10m-4-4 4 4-4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-                                </svg>
-                            </span>
-                        </Link>
                     </div>
                 </div>
             )}
