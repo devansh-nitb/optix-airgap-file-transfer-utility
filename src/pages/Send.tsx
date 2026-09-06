@@ -199,14 +199,20 @@ export default function Send() {
         window.addEventListener('keydown', handleKeyDown);
 
         return () => {
-            isBroadcastingRef.current = false;
-            if (loopTimerRef.current !== null) clearTimeout(loopTimerRef.current);
-            if (timerRef.current !== null) clearInterval(timerRef.current);
             document.removeEventListener('fullscreenchange', handleFullscreenChange);
             document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
             window.removeEventListener('keydown', handleKeyDown);
         };
     }, [isFullScreen]);
+
+    useEffect(() => {
+        // Component unmount cleanup for the broadcast loop
+        return () => {
+            isBroadcastingRef.current = false;
+            if (loopTimerRef.current !== null) clearTimeout(loopTimerRef.current);
+            if (timerRef.current !== null) clearInterval(timerRef.current);
+        };
+    }, []);
 
     const kBlocks = file && fileBuffer ? Math.ceil(fileBuffer.length / BLOCK_SIZE) : 0;
 
