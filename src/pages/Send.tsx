@@ -314,14 +314,14 @@ export default function Send() {
                                     <span>Files over 5 MB may take 10–25 minutes to transfer. Consider splitting.</span>
                                 </div>
                             )}
-                            {file.size > 50 * 1024 * 1024 && (
+                            {sendMode === 'file' && file && file.size > 50 * 1024 * 1024 && (
                                 <div className="alert alert-danger mt-4">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
                                     <span>File exceeds the 50 MB hard limit. Transfer is not practical over QR.</span>
                                 </div>
                             )}
 
-                            {fileBuffer && (
+                            {sendMode === 'file' && file && fileBuffer && (
                                 <div className="transfer-info">
                                     <div className="info-chip">
                                         <div className="info-chip-label">File Size</div>
