@@ -2065,6 +2065,75 @@ p { color: var(--text-secondary); line-height: 1.6; }
 .mt-6 { margin-top: 1.5rem; }
 .mt-8 { margin-top: 2rem; }
 
+/* ===== TEXT TRANSFER MODE ===== */
+.mode-tabs {
+  display: flex;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: var(--radius-md);
+  padding: 0.25rem;
+  margin-bottom: 1.5rem;
+}
+
+[data-theme='dark'] .mode-tabs {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mode-tab {
+  flex: 1;
+  padding: 0.6rem;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mode-tab.active {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.text-input-area {
+  width: 100%;
+  min-height: 150px;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-strong);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 0.9rem;
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.text-input-area:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.text-display-box {
+  width: 100%;
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  border: 1px solid var(--border-strong);
+  color: var(--text-primary);
+  font-family: monospace;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
 /* ===== RESPONSIVE ===== */
 @media (max-width: 640px) {
   .main-content { padding: 1rem 0.5rem; }

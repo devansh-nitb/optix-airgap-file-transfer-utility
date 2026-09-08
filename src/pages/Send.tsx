@@ -32,11 +32,13 @@ export default function Send() {
     const [file, setFile] = useState<File | null>(null);
     const [fileBuffer, setFileBuffer] = useState<Uint8Array | null>(null);
     const [isBroadcasting, setIsBroadcasting] = useState(false);
-    const [isFullScreen, setIsFullScreen] = useState(false);
     const [packetsTransmitted, setPacketsTransmitted] = useState(0);
     const [timeElapsed, setTimeElapsed] = useState(0);
     const [password, setPassword] = useState('');
     const [isPreparing, setIsPreparing] = useState(false);
+    const [sendMode, setSendMode] = useState<'file' | 'text'>('file');
+    const [textPayload, setTextPayload] = useState('');
+    const [isFullScreen, setIsFullScreen] = useState(false);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const broadcastContainerRef = useRef<HTMLDivElement>(null);
@@ -88,17 +90,29 @@ export default function Send() {
     }, [renderFrame]);
 
     const startBroadcast = async () => {
-        if (!file || !fileBuffer) return;
+        let baseBuffer: Uint8Array;
+        let transferFilename = '';
+
+        if (sendMode === 'text') {
+            if (!textPayload.trim()) return;
+            baseBuffer = new TextEncoder().encode(textPayload);
+            transferFilename = '__optix_text_payload__.txt';
+        } else {
+            if (!file || !fileBuffer) return;
+            baseBuffer = fileBuffer;
+            transferFilename = file.name;
+        }
+
         setIsPreparing(true);
         
-        let bufferToEncode = fileBuffer;
+        let bufferToEncode = baseBuffer;
         let isEncrypted = false;
         let iv: Uint8Array | undefined = undefined;
         let salt: Uint8Array | undefined = undefined;
 
         if (password) {
             try {
-                const encrypted = await encryptFile(fileBuffer.buffer as ArrayBuffer, password);
+                const encrypted = await encryptFile(baseBuffer.buffer as ArrayBuffer, password);
                 bufferToEncode = new Uint8Array(encrypted.ciphertext);
                 iv = encrypted.iv;
                 salt = encrypted.salt;
@@ -123,7 +137,7 @@ export default function Send() {
             kBlocks: encoderRef.current.getK(),
             fountainSeed: seed,
             sha256: hash,
-            filename: file.name,
+            filename: transferFilename,
             isEncrypted,
             iv,
             salt
@@ -231,7 +245,21 @@ export default function Send() {
                 </div>
 
                 <div className="glass-card setup-panel flex flex-col items-center">
-                    {!file ? (
+                    <div className="mode-tabs">
+                        <button className={`mode-tab ${sendMode === 'file' ? 'active' : ''}`} onClick={() => setSendMode('file')}>File Upload</button>
+                        <button className={`mode-tab ${sendMode === 'text' ? 'active' : ''}`} onClick={() => setSendMode('text')}>Text Message</button>
+                    </div>
+
+                    {sendMode === 'text' ? (
+                        <div style={{ width: '100%' }}>
+                            <textarea
+                                className="text-input-area"
+                                placeholder="Paste your text, secure passwords, or JSON configs here..."
+                                value={textPayload}
+                                onChange={(e) => setTextPayload(e.target.value)}
+                            />
+                        </div>
+                    ) : !file ? (
                         <label htmlFor="fileInput" className="upload-box-container">
                             <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
                                 <path d="M25.665 3.667H11a3.667 3.667 0 0 0-3.667 3.666v29.334A3.667 3.667 0 0 0 11 40.333h22a3.667 3.667 0 0 0 3.666-3.666v-22m-11-11 11 11m-11-11v11h11m-7.333 9.166H14.665m14.667 7.334H14.665M18.332 16.5h-3.667" stroke="#2563EB" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -248,23 +276,39 @@ export default function Send() {
                         </label>
                     ) : (
                         <>
-                            <div className="file-selected">
-                                <div className="file-icon-wrap">
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: '#fff'}}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            <div className="flex items-center gap-3 w-full" style={{ padding: '0.5rem', background: 'var(--surface)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                                <div style={{ background: 'var(--accent)', color: 'white', padding: '0.6rem', borderRadius: '8px' }}>
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"></path>
+                                        <polyline points="13 2 13 9 20 9"></polyline>
+                                    </svg>
                                 </div>
-                                <div className="file-info">
-                                    <div className="file-name">{file.name}</div>
-                                    <div className="file-size">{formatSize(file.size)}</div>
+                                <div className="flex-1" style={{ minWidth: 0 }}>
+                                    <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: 'var(--text-primary)' }}>
+                                        {file.name}
+                                    </p>
+                                    <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                        {(file.size / 1024).toFixed(1)} KB
+                                    </p>
                                 </div>
-                                <button
-                                    className="file-change-btn"
+                                <button 
+                                    className="btn" 
+                                    style={{ padding: '0.5rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)' }}
                                     onClick={() => { setFile(null); setFileBuffer(null); }}
+                                    title="Remove file"
                                 >
-                                    Change
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
                                 </button>
                             </div>
+                        </>
+                    )}
 
-                            {file.size > 5 * 1024 * 1024 && (
+                    {((sendMode === 'file' && file) || sendMode === 'text') && (
+                        <>
+                            {sendMode === 'file' && file && file.size > 5 * 1024 * 1024 && (
                                 <div className="alert alert-warning mt-4">
                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink: 0}}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
                                     <span>Files over 5 MB may take 10–25 minutes to transfer. Consider splitting.</span>
@@ -317,7 +361,7 @@ export default function Send() {
                                     className="btn btn-primary btn-lg"
                                     style={{ flex: 1 }}
                                     onClick={startBroadcast}
-                                    disabled={isPreparing || !fileBuffer}
+                                    disabled={isPreparing || (sendMode === 'file' ? !fileBuffer : !textPayload.trim())}
                                 >
                                     {isPreparing ? (
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem' }}>

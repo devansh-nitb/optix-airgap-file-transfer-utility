@@ -38,6 +38,7 @@ export default function Receive() {
     const [password, setPassword] = useState('');
     const [isDecrypting, setIsDecrypting] = useState(false);
     const [encryptedBuffer, setEncryptedBuffer] = useState<ArrayBuffer | null>(null);
+    const [textContent, setTextContent] = useState<string | null>(null);
 
     const metaRef = useRef<InitMetadata | null>(null);
 
@@ -124,6 +125,19 @@ export default function Receive() {
         }
     };
 
+    const processDecryptedData = (buffer: ArrayBuffer, m: InitMetadata) => {
+        if (m.filename === '__optix_text_payload__.txt') {
+            const text = new TextDecoder().decode(buffer);
+            setTextContent(text);
+            setState('complete');
+        } else {
+            const blob = new Blob([buffer]);
+            const url = URL.createObjectURL(blob);
+            setFileUrl(url);
+            setState('complete');
+        }
+    };
+
     const finishTransfer = async (m: InitMetadata) => {
         if (!decoderRef.current) return;
         try {
@@ -138,10 +152,7 @@ export default function Receive() {
                 setEncryptedBuffer(fileData.buffer as ArrayBuffer);
                 setState('awaiting_password');
             } else {
-                const blob = new Blob([fileData.buffer as ArrayBuffer]);
-                const url = URL.createObjectURL(blob);
-                setFileUrl(url);
-                setState('complete');
+                processDecryptedData(fileData.buffer as ArrayBuffer, m);
             }
         } catch (err) {
             setState('error');
@@ -159,10 +170,7 @@ export default function Receive() {
         setErrorMsg(null);
         try {
             const decrypted = await decryptFile(encryptedBuffer, password, m.iv, m.salt);
-            const blob = new Blob([decrypted]);
-            const url = URL.createObjectURL(blob);
-            setFileUrl(url);
-            setState('complete');
+            processDecryptedData(decrypted, m);
         } catch (err) {
             setErrorMsg('Incorrect password or corrupted data. Decryption failed.');
             console.error(err);
@@ -205,6 +213,7 @@ export default function Receive() {
         setFramesScanned(0);
         setPacketsAccepted(0);
         setEncryptedBuffer(null);
+        setTextContent(null);
         setPassword('');
         setIsDecrypting(false);
         setState('idle');
@@ -224,33 +233,60 @@ export default function Receive() {
                 <h1 className="page-title mt-3">Receive a File</h1>
                 <p className="page-subtitle">Point your camera at the sender's QR stream.</p>
             </div>
-
             <div className="glass-card scan-panel">
-                {state === 'complete' && fileUrl ? (
+                {state === 'complete' && (fileUrl || textContent !== null) ? (
                     <div className="success-state fade-in">
                         <div className="success-icon-wrap">
                             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color: '#fff'}}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                         </div>
                         <div className="success-title">Transfer Complete!</div>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                            SHA-256 verified. Your file is intact.
+                            SHA-256 verified. Your payload is intact.
                         </p>
-                        <div className="success-filename">{fileName || 'downloaded_file'}</div>
-                        <div className="success-actions">
-                            <a
-                                href={fileUrl}
-                                download={fileName || 'downloaded_file'}
-                                className="btn btn-success btn-lg"
-                            >
-                                <span style={{display:'flex', alignItems:'center', gap:'0.4rem'}}>
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                    Download File
-                                </span>
-                            </a>
-                            <button className="btn btn-ghost" onClick={clearAndRetry}>
-                                Receive Another
-                            </button>
-                        </div>
+                        
+                        {textContent !== null ? (
+                            <>
+                                <div className="success-filename">Secure Text Payload</div>
+                                <div className="text-display-box">
+                                    {textContent}
+                                </div>
+                                <div className="success-actions" style={{ flexDirection: 'row', gap: '0.75rem', width: '100%' }}>
+                                    <button
+                                        className="btn btn-success btn-lg"
+                                        style={{ flex: 1 }}
+                                        onClick={() => navigator.clipboard.writeText(textContent)}
+                                    >
+                                        Copy Text
+                                    </button>
+                                    <button
+                                        className="btn btn-lg"
+                                        style={{ flex: 1, background: 'transparent', color: 'var(--text-primary)', border: '1px solid var(--border-color)' }}
+                                        onClick={clearAndRetry}
+                                    >
+                                        Burn & Close
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className="success-filename">{fileName || 'downloaded_file'}</div>
+                                <div className="success-actions">
+                                    <a
+                                        href={fileUrl!}
+                                        download={fileName || 'downloaded_file'}
+                                        className="btn btn-success btn-lg"
+                                    >
+                                        <span style={{display:'flex', alignItems:'center', gap:'0.4rem'}}>
+                                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                                            Download File
+                                        </span>
+                                    </a>
+                                    <button className="btn btn-ghost" onClick={clearAndRetry}>
+                                        Scan Another
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
                 ) : state === 'awaiting_password' ? (
                     <div className="success-state fade-in">
