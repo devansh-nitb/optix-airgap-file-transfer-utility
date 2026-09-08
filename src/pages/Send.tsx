@@ -343,7 +343,7 @@ export default function Send() {
                             )}
 
                             <div className="mt-4" style={{ width: '100%', textAlign: 'left' }}>
-                                <label style={{ display: 'block', fontSize: '0.9rem', color: 'rgba(255, 255, 255, 0.7)', marginBottom: '0.5rem' }}>
+                                <label style={{ display: 'block', fontSize: '0.9rem', color: 'var(--text-secondary)', fontWeight: 500, marginBottom: '0.5rem' }}>
                                     Password Protection (Optional)
                                 </label>
                                 <input
@@ -352,7 +352,7 @@ export default function Send() {
                                     placeholder="Enter password to encrypt..."
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.15)', backgroundColor: 'rgba(0, 0, 0, 0.25)', color: '#ffffff', outline: 'none' }}
+                                    style={{ width: '100%', padding: '0.8rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-strong)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', outline: 'none' }}
                                 />
                             </div>
 
