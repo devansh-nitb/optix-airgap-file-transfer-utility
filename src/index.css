@@ -2104,7 +2104,7 @@ p { color: var(--text-secondary); line-height: 1.6; }
   padding: 1rem;
   border-radius: var(--radius-md);
   border: 1px dashed var(--border-strong);
-  background: var(--bg-card);
+  background: var(--bg-secondary);
   color: var(--text-primary);
   font-family: monospace;
   font-size: 0.9rem;
